@@ -9,3 +9,7 @@ dist/
 *~
 .idea/
 .vscode/
+
+# Archived releases and G4 workspace artifacts
+_archive/
+*.zip
