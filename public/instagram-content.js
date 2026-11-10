@@ -39,7 +39,7 @@
     });
 
     // Depois do carregamento, pede a lista para exibir o badge se já houver mídia.
-    setTimeout(() => { if (!panel) requestList(); }, 2500);
+    setTimeout(() => { if (!panel) { requestList(); ensureBadge(); } }, 2500);
   }
 
   let panel = null;
@@ -90,7 +90,7 @@
     if (document.getElementById('gump-insta-badge') || panel) return;
     const badge = document.createElement('button');
     badge.id = 'gump-insta-badge';
-    badge.title = 'Gump.io — mídia detectada';
+    badge.title = 'Gump.io — Instagram Downloader';
     badge.textContent = '⇩';
     badge.addEventListener('click', () => { requestList(); openPanel(); });
     document.documentElement.appendChild(badge);
@@ -136,7 +136,8 @@
 
   function renderPanel({ media = [], blobs = [] }) {
     mediaCount = media.length;
-    if (!panel) { ensureBadge(); return; }
+    ensureBadge();
+    if (!panel) return;
     const body = panel.querySelector('#gump-insta-body');
     const count = panel.querySelector('#gump-insta-count');
     const blobMap = new Map(blobs);

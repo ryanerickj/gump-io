@@ -8,6 +8,7 @@
   window.__gumpInstaHooked = true;
 
   const MEDIA_RE = /\.(mp4|mov|m4v|webm|jpg|jpeg|png|webp|heic)(\?|$)/i;
+  const VIDEO_HINT_RE = /(video|mp4|_a\.mp4|_b\.mp4|reel|dashinfo)/i;
   const CDN_HOST_RE = /(^|\.)cdninstagram\.com$|(^|\.)fbcdn\.net$/i;
   const VIDEO_RE = /(\.mp4|video)/i;
   const IMAGE_RE = /\.(jpg|jpeg|png|webp|heic)(\?|$)/i;
@@ -27,16 +28,17 @@
     } catch { return 0; }
   };
 
-  const add = (raw) => {
+  const add = (raw, contentType = '') => {
     if (!raw || typeof raw !== 'string' || raw.startsWith('blob:')) return;
     let url;
     try { url = new URL(raw, location.href); } catch { return; }
     if (!CDN_HOST_RE.test(url.hostname)) return;
+    const isVideoByType = /video|mp4/i.test(contentType);
+    if (!MEDIA_RE.test(url.pathname) && !isVideoByType) return;
     const absolute = url.href;
-    if (!MEDIA_RE.test(url.pathname)) return;
     if (found.has(absolute)) { found.get(absolute).last = Date.now(); return; }
     if (found.size >= MAX) return;
-    const isVideo = !IMAGE_RE.test(url.pathname);
+    const isVideo = isVideoByType || (!IMAGE_RE.test(url.pathname) && VIDEO_HINT_RE.test(absolute));
     found.set(absolute, {
       url: absolute,
       kind: isVideo ? 'video' : 'image',
@@ -78,9 +80,9 @@
     try {
       const input = args[0];
       const url = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
-      add(url);
       const type = response.headers?.get?.('content-type') || '';
-      if (/video|mp4/i.test(type) && CDN_HOST_RE.test(new URL(url, location.href).hostname)) { add(url); lastVideoUrl = url; }
+      add(url, type);
+      if (/video|mp4/i.test(type) && CDN_HOST_RE.test(new URL(url, location.href).hostname)) { lastVideoUrl = url; }
     } catch {}
     return response;
   };
@@ -89,6 +91,10 @@
   const nativeOpen = XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open = function (method, url, ...rest) {
     try { add(typeof url === 'string' ? url : String(url)); } catch {}
+    const call = this;
+    call.addEventListener('load', function () {
+      try { add(typeof url === 'string' ? url : String(url), call.getResponseHeader?.('content-type') || ''); } catch {}
+    });
     return nativeOpen.call(this, method, url, ...rest);
   };
 
