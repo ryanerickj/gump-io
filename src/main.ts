@@ -54,3 +54,20 @@ $('preview-download').addEventListener('click',()=>{if(previewFrame)void downloa
 $('preview-copy').addEventListener('click',()=>{if(previewFrame)void copyFrame(previewFrame);});
 previewModal.addEventListener('click',(event)=>{ if(event.target===previewModal) previewModal.close(); });
 $('export').addEventListener('click',async()=>{const chosen=frames.filter(f=>(grid.querySelector(`[data-id="${f.id}"]`) as HTMLInputElement)?.checked).sort((a,b)=>a.time-b.time);if(!chosen.length){status.textContent='Selecione ao menos um frame.';return;}busy=true;cancelled=false;try{for(let i=0;i<chosen.length&&!cancelled;i++){await seek(chosen[i].time);const c=canvas();const blob=await new Promise<Blob>((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('PNG indisponível.')),'image/png'));const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`${safeName(file!.name)}-${timeLabel(chosen[i].time).replaceAll(':','-')}.png`;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);setProgress((i+1)/chosen.length*100);status.textContent=`Exportando ${i+1} de ${chosen.length} PNGs…`;}}catch(e){status.textContent=e instanceof Error?e.message:'A exportação falhou.';}finally{busy=false;setProgress(null);if(!cancelled)status.textContent='PNGs exportados na resolução nativa do vídeo.';}});
+
+// Instagram Downloader: abre a Gump.io já com um vídeo da CDN do Instagram (?src=<url>).
+if (location.search.includes('src=')) {
+  const source = new URLSearchParams(location.search).get('src');
+  if (source) {
+    history.replaceState(null, '', location.pathname);
+    status.textContent = 'Baixando vídeo do Instagram…';
+    fetch(source).then(async (response) => {
+      if (!response.ok) throw new Error(`CDN respondeu ${response.status}`);
+      const blob = await response.blob();
+      if (blob.size < 100_000) throw new Error('Arquivo muito pequeno — a URL expirou. Atualize o Instagram, dê play e tente de novo.');
+      const name = /instagram\.com/.test(source) ? 'instagram.mp4' : source.split('/').pop() || 'video.mp4';
+      await loadVideo(new File([blob], name, { type: blob.type || 'video/mp4' }));
+      status.textContent = 'Vídeo do Instagram carregado. Ajuste o intervalo e varra os frames.';
+    }).catch((error) => { status.textContent = `Não foi possível carregar o vídeo do Instagram: ${error instanceof Error ? error.message : 'erro desconhecido'}.`; });
+  }
+}
